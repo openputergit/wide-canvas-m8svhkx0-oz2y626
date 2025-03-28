@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cricket Team Auction App</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Poppins', sans-serif; }
+        .auction-card { transition: transform 0.3s ease; }
+        .auction-card:hover { transform: translateY(-5px); }
+        @media (max-width: 640px) {
+            .team-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <nav class="bg-blue-600 text-white p-4">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-2xl font-bold">Cricket Auction Manager</h1>
+            <button id="startAuction" class="bg-green-500 hover:bg-green-600 px-4 py-2 rounded-lg">Start New Auction</button>
+        </div>
+    </nav>
+
+    <main class="container mx-auto p-4">
+        <!-- Setup Section -->
+        <div id="setupSection" class="hidden">
+            <div class="bg-white rounded-lg p-6 shadow-lg mb-6">
+                <h2 class="text-xl font-bold mb-4">Tournament Setup</h2>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block mb-2">Number of Teams (2-4)</label>
+                        <input type="number" id="teamCount" min="2" max="4" class="border p-2 rounded w-full" value="2">
+                    </div>
+                    <div>
+                        <label class="block mb-2">Budget per Team (in millions)</label>
+                        <input type="number" id="teamBudget" class="border p-2 rounded w-full" value="100">
+                    </div>
+                    <button id="confirmSetup" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Continue</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Team Setup Section -->
+        <div id="teamSetup" class="hidden">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 team-grid">
+                <!-- Teams will be dynamically inserted here -->
+            </div>
+            <button id="startBidding" class="mt-6 bg-green-500 text-white px-6 py-3 rounded-lg hover:bg-green-600 w-full">Start Bidding</button>
+        </div>
+
+        <!-- Auction Section -->
+        <div id="auctionSection" class="hidden">
+            <div class="bg-white rounded-lg p-6 shadow-lg">
+                <div class="mb-6">
+                    <h2 class="text-2xl font-bold mb-2">Current Player Auction</h2>
+                    <div class="flex flex-wrap gap-4 mb-4">
+                        <input type="text" id="playerName" placeholder="Player Name" class="border p-2 rounded">
+                        <input type="number" id="basePrice" placeholder="Base Price" class="border p-2 rounded">
+                        <select id="playerRole" class="border p-2 rounded">
+                            <option value="Batsman">Batsman</option>
+                            <option value="Bowler">Bowler</option>
+                            <option value="All-Rounder">All-Rounder</option>
+                            <option value="Wicket-Keeper">Wicket-Keeper</option>
+                        </select>
+                        <button id="startPlayerBid" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Start Bid</button>
+                    </div>
+                    <div id="currentBid" class="text-xl font-bold"></div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <!-- Team cards with their current players and budgets will appear here -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let teams = [];
+        let currentBid = 0;
+        let currentBidder = null;
+        let auctionInProgress = false;
+
+        document.getElementById('startAuction').addEventListener('click', () => {
+            document.getElementById('setupSection').classList.remove('hidden');
+            document.getElementById('teamSetup').classList.add('hidden');
+            document.getElementById('auctionSection').classList.add('hidden');
+        });
+
+        document.getElementById('confirmSetup').addEventListener('click', () => {
+            const teamCount = parseInt(document.getElementById('teamCount').value);
+            const budget = parseInt(document.getElementById('teamBudget').value);
+            
+            if (teamCount < 2 || teamCount > 4 || budget <= 0) {
+                alert('Please enter valid values');
+                return;
+            }
+
+            teams = [];
+            for (let i = 1; i <= teamCount; i++) {
+                teams.push({
+                    name: `Team ${i}`,
+                    budget: budget,
+                    players: [],
+                    captain: null
+                });
+            }
+
+            document.getElementById('setupSection').classList.add('hidden');
+            document.getElementById('teamSetup').classList.remove('hidden');
+            renderTeamSetup();
+        });
+
+        function renderTeamSetup() {
+            const container = document.querySelector('.team-grid');
+            container.innerHTML = '';
+
+            teams.forEach((team, index) => {
+                const teamCard = document.createElement('div');
+                teamCard.className = 'bg-white p-4 rounded-lg shadow-lg';
+                teamCard.innerHTML = `
+                    <h3 class="text-xl font-bold mb-2">Team ${index + 1}</h3>
+                    <div class="mb-4">
+                        <label class="block mb-2">Team Name</label>
+                        <input type="text" class="border p-2 rounded w-full team-name" value="${team.name}">
+                    </div>
+                    <div class="mb-4">
+                        <label class="block mb-2">Captain Name</label>
+                        <input type="text" class="border p-2 rounded w-full captain-name">
+                    </div>
+                    <div class="mb-4">
+                        <label class="block mb-2">Captain Price</label>
+                        <input type="number" class="border p-2 rounded w-full captain-price" max="${team.budget}">
+                    </div>
+                `;
+                container.appendChild(teamCard);
+            });
+        }
+
+        document.getElementById('startBidding').addEventListener('click', () => {
+            const teamNames = document.querySelectorAll('.team-name');
+            const captainNames = document.querySelectorAll('.captain-name');
+            const captainPrices = document.querySelectorAll('.captain-price');
+
+            let valid = true;
+            teams.forEach((team, index) => {
+                const captainPrice = parseInt(captainPrices[index].value);
+                if (!teamNames[index].value || !captainNames[index].value || !captainPrice || captainPrice > team.budget) {
+                    valid = false;
+                }
+            });
+
+            if (!valid) {
+                alert('Please fill all fields with valid values');
+                return;
+            }
+
+            teams.forEach((team, index) => {
+                team.name = teamNames[index].value;
+                team.captain = {
+                    name: captainNames[index].value,
+                    price: parseInt(captainPrices[index].value)
+                };
+                team.budget -= team.captain.price;
+            });
+
+            document.getElementById('teamSetup').classList.add('hidden');
+            document.getElementById('auctionSection').classList.remove('hidden');
+            renderAuctionSection();
+        });
+
+        function renderAuctionSection() {
+            const container = document.querySelector('#auctionSection .grid');
+            container.innerHTML = '';
+
+            teams.forEach(team => {
+                const teamCard = document.createElement('div');
+                teamCard.className = 'bg-gray-50 p-4 rounded-lg shadow auction-card';
+                teamCard.innerHTML = `
+                    <h3 class="text-lg font-bold mb-2">${team.name}</h3>
+                    <p class="text-green-600 font-bold">Budget: ${team.budget}M</p>
+                    <div class="mt-4">
+                        <p class="font-bold">Captain: ${team.captain.name}</p>
+                        <p class="text-sm text-gray-600">Price: ${team.captain.price}M</p>
+                    </div>
+                    <div class="mt-4">
+                        <h4 class="font-bold mb-2">Players:</h4>
+                        <ul class="text-sm">
+                            ${team.players.map(player => `
+                                <li>${player.name} (${player.price}M) - ${player.role}</li>
+                            `).join('')}
+                        </ul>
+                    </div>
+                    ${auctionInProgress ? `
+                        <button onclick="placeBid('${team.name}')" 
+                                class="mt-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 w-full"
+                                ${team.budget < currentBid ? 'disabled' : ''}>
+                            Place Bid
+                        </button>
+                    ` : ''}
+                `;
+                container.appendChild(teamCard);
+            });
+        }
+
+        document.getElementById('startPlayerBid').addEventListener('click', () => {
+            const playerName = document.getElementById('playerName').value;
+            const basePrice = parseInt(document.getElementById('basePrice').value);
+            const playerRole = document.getElementById('playerRole').value;
+
+            if (!playerName || !basePrice || basePrice <= 0) {
+                alert('Please enter valid player details');
+                return;
+            }
+
+            currentBid = basePrice;
+            currentBidder = null;
+            auctionInProgress = true;
+            document.getElementById('currentBid').textContent = `Current Bid: ${currentBid}M for ${playerName}`;
+            renderAuctionSection();
+        });
+
+        function placeBid(teamName) {
+            const team = teams.find(t => t.name === teamName);
+            if (team.budget < currentBid) {
+                alert('Insufficient budget');
+                return;
+            }
+
+            currentBid += 1;
+            currentBidder = team;
+            document.getElementById('currentBid').textContent = `Current Bid: ${currentBid}M (${teamName})`;
+            renderAuctionSection();
+
+            // Auto-complete auction after 5 seconds of no new bids
+            clearTimeout(window.bidTimeout);
+            window.bidTimeout = setTimeout(() => {
+                if (currentBidder) {
+                    completeBid();
+                }
+            }, 5000);
+        }
+
+        function completeBid() {
+            if (!currentBidder) return;
+
+            const playerName = document.getElementById('playerName').value;
+            const playerRole = document.getElementById('playerRole').value;
+
+            currentBidder.players.push({
+                name: playerName,
+                price: currentBid,
+                role: playerRole
+            });
+            currentBidder.budget -= currentBid;
+
+            auctionInProgress = false;
+            document.getElementById('currentBid').textContent = `${playerName} sold to ${currentBidder.name} for ${currentBid}M`;
+            document.getElementById('playerName').value = '';
+            document.getElementById('basePrice').value = '';
+            currentBid = 0;
+            currentBidder = null;
+            renderAuctionSection();
+        }
+    </script>
+<script>document.body.addEventListener('wheel', e => { if (!e.ctrlKey) return; e.preventDefault(); return }, { passive: false })</script>
+	</body>
+</html>
